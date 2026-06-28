@@ -40,7 +40,7 @@ extern u8 examRunning; // set in main when uhour==HOUR && umin==MIN first trigge
 
 void EINT2_ISR(void)__irq
 {
-	if(examRunning)   // Bug 6 fix: ignore pause button if exam hasn't started
+	if(examRunning)   //ignore pause button if exam hasn't started
 	{
 		cmdLcd(0x01);
 		strLcd("in eint2");
@@ -49,12 +49,12 @@ void EINT2_ISR(void)__irq
 		if(flag2%2==0)
 		{
 			// resuming: add the paused duration (in total minutes) to pause accumulator
-			u32 nowTotalMin = (u32)HOUR*60 + MIN;     // Bug 1 fix: total minutes, no wrap
+			u32 nowTotalMin = (u32)HOUR*60 + MIN;     // total minutes, no wrap
 			pause += (nowTotalMin - temppause);
 		}
 		else
 		{
-			// pausing: record current total-minute timestamp
+			//record current total-minute timestamp
 			temppause = (u32)HOUR*60 + MIN;            
 		}
 	}
@@ -91,15 +91,46 @@ void Init_ENIT2(void)
 	//falling edge for intrrupt 2
 	EXTPOLAR=0<<2;
 }
+
+
+void Timer0_Init(void)
+{
+    T0TCR = 0x02;     
+    T0PR  = 14999;    /* PCLK/15000 = 1000 Hz ? 1ms per tick */
+    T0MR0 = 5;        /* 5 ticks × 1ms = 5ms                 */
+    T0MCR = 0x03;     
+    T0TCR = 0x01;
+}
+
+void Timer0_ISR() __irq
+{
+	
+	disp_2_mux_segs(dur);  /*for displaying duration value on segments*/
+    T0IR = 0x01;   /* clear interrupt flag — mandatory        */
+    VICVectAddr = 0;      /* EOI to VIC — must be absolute last line */
+}
+
+void VIC_Init(void)
+{
+    VICVectAddr3 = (unsigned long)Timer0_ISR;  //intialize timer subroutine address 
+    VICVectCntl3 = (1<<5)|4;                   //value 4 is channel no of timer0
+    VICIntEnable  = (1 << 4);                  //enable the channel 4(timer 0)
+}
+
+    
+    
+    
 //for comparing with exam time and current time
 u8 examRunning=0;
 
 int main()
 {
-	u32 c=0,c1=0;
+	u32 c=0;
 	u32 nowTotalMin, elapsed;
 	//we have select the EINT0 and EINT1 from pinselect block.
 	PINSEL0=0x0000C00C;
+	//we have set the gpio function of p0.27,p0.28,p0.29 pins
+	PINSEL1=0x10000000;
 	//here we give the direction for buzzer and LEDs
 	IODIR0|=(1<<LED1)|(1<<LED2)|(1<<LED3)|(1<<buzzer);
 	//initialize EINT0 and EINT2
@@ -113,13 +144,18 @@ int main()
 	init_7segs();
 	//initialize Analog to digital converter
 	Init_ADC();
+	//initialise the timer0 SFR registers
+	Timer0_Init();
+	//initialize the interupt for TIMER0
+	VIC_Init();
+  cmdLcd(DSP_ON_CUR_OFF);
 	//in this function we gave the default TIME AND DATE
 	Default_Rtc_time();
-	cmdLcd(0x0c);
-	cmdLcd(0x94);
+	cmdLcd(GOTO_LINE2_POS0);
+	cmdLcd(GOTO_LINE3_POS0);
 	strLcd("   SYSTEM LOADING  ");
 	delay_ms(1000);
-	cmdLcd(0x01);
+	cmdLcd(CLEAR_LCD);
 	while(1)
 	{
 		
@@ -151,8 +187,7 @@ int main()
 			{
 				// capture start reference ONCE, exactly when exam begins
 				examStartTotalMin = (u32)HOUR*60 + MIN;
-				for(c1=1;c1<200;c1++)
-			    disp_2_mux_segs(dur);
+				
 				examRunning = 1;
 				pause = 0;
 				flag2 = 0;
@@ -170,34 +205,27 @@ int main()
 				else
 					dur = tempTime - elapsed;
 
-				//for(c1=1;c1<200;c1++)
-					//disp_2_mux_segs(dur);  // this function display remaining time to end exam
 			}
-			else if((flag2%2)==1)
-			{ 
-				// paused: just keep displaying last computed dur, don't recalc
-				for(c1=1;c1<50;c1++)
-					disp_2_mux_segs(dur);
-			}
-
 			// clear all LED bits before setting the relevant one
-			IOPIN0 &= ~((1<<LED1)|(1<<LED2)|(1<<LED3)|(1<<buzzer));
+			//IOPIN0 &= ~((1<<LED1)|(1<<LED2)|(1<<LED3)|(1<<buzzer));
 
 			if(dur==0)
 			{
-				
-				IOPIN0 |= (1<<buzzer);
+				IOCLR0=(1<<LED1);
+				IOPIN0 |= (1<<buzzer); //buzzer for indication exam completed
 				delay_ms(3000);
 				VICIntEnable=1<<EINT0_CH;//after exam finished again we enable the EINT0_ISR for edit settings
 				examRunning = 0;   // exam finished, stop running state
 				c = 0;             // allow a fresh exam to start later
 			}
-			else if(dur<=5)
+			else if( dur>0 && dur<=5)
 			{
+				IOCLR0=(1<<LED2);
 				IOPIN0 |= (1<<LED1);
 			}
-			else if(dur<=10)
+			else if(dur>15 && dur<=10)
 			{
+				IOCLR0=(1<<LED3);
 				IOPIN0 |= (1<<LED2);
 			}
 			else if(dur<=15)
@@ -205,28 +233,23 @@ int main()
 				IOPIN0 |= (1<<LED3);
 			}
 		}
-		for(c1=1;c1<100;c1++)
-			disp_2_mux_segs(dur);
-    cmdLcd(0xd4);
+        cmdLcd(GOTO_LINE4_POS0);
 		strLcd("Duration ");
-		u32Lcd(dur);
-		cmdLcd(0x80);
-		Rtc_Time_Display();
-		cmdLcd(0xc0);
-	  Rtc_Date_Display();
-		for(c1=1;c1<100;c1++)
-			disp_2_mux_segs(dur);
-		cmdLcd(0x94);	
+		u32Lcd(dur);            //display exam duration on lcd 
+		cmdLcd(GOTO_LINE1_POS0);
+		Rtc_Time_Display();     //function for displaying rtc time
+		cmdLcd(GOTO_LINE2_POS0);
+	    Rtc_Date_Display();      //function for displaying rtc date
+		cmdLcd(GOTO_LINE3_POS0);	
 		strLcd("temp ");
-		f32Lcd(Read_LM35DegC(),2);
-		charLcd(0xdf);
+		f32Lcd(Read_LM35DegC(),2); //temperature display on lcd
+		charLcd(0xdf);             
 		charLcd('C');
 		if(flag2%2)
 		{
-			strLcd("  pause");
+			strLcd("  pause");  //for indication purpose for exam paused
 		}
-		for(c1=1;c1<100;c1++)
-			disp_2_mux_segs(dur);
+	
 	}		
 }
 
