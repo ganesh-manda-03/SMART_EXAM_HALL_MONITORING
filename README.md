@@ -285,10 +285,7 @@ cd Smart-Exam-Hall-System
 
 ---
 
-## 📜 License
 
-This project is developed for **educational and academic purposes**.  
-Feel free to use, modify, and build upon it with appropriate credit.
 
 ---
 
