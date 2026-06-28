@@ -43,10 +43,10 @@ The **Smart Exam Hall Monitoring and Management System** is a real-time embedded
 ```
 Remaining Time        LED State
 ─────────────────     ──────────────────────────
-> 5 minutes      →    All LEDs OFF
-≤ 5 minutes      →    🟡 LED3 ON
-≤ 3 minutes      →    🟠 LED2 ON  (LED3 OFF)
-≤ 1 minute       →    🔴 LED1 ON  (LED2 OFF)
+> 15 minutes      →    All LEDs OFF
+≤ 15 minutes      →    🟡 LED3 ON
+≤ 10 minutes      →    🟠 LED2 ON  (LED3 OFF)
+≤ 5 minute       →    🔴 LED1 ON  (LED2 OFF)
   0 minutes       →    🔊 BUZZER sounds for 3 sec
 ```
 
