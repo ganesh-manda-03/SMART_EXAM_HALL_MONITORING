@@ -284,6 +284,7 @@ cd Smart-Exam-Hall-System
 - `EXTMODE` and `EXTPOLAR` registers should be configured before enabling interrupts in VIC for reliable edge detection
 
 ---
+<img width="469" height="368" alt="image" src="https://github.com/user-attachments/assets/0a206d8d-75e6-4be7-b879-b2d211a9b479" />
 
 
 
