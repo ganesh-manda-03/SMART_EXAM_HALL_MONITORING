@@ -130,11 +130,13 @@ Remaining Time        LED State
 | ADC CH3 (P0.28) | LM35 analog input |
 
 ---
-|VIRTUAL SIMULATION ARCHITECTURE|
+|VIRTUAL SIMULATION ARCHITECTURE IN PROTEUS|
 
 ---
 <img width="469" height="368" alt="image" src="https://github.com/user-attachments/assets/acff6652-4b95-4df1-b1fe-038ad03e43a3" />
+
 ---
+
 ## 📁 Project Structure
 
 ```
