@@ -155,7 +155,7 @@ void f32Lcd(f32 fnum,u32 ndp)
 {
  u32 num;
  s32 i;
- if(num<0.0)
+ if(fnum<0.0)
  {
     charLcd('-');
         fnum=-fnum;
