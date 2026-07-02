@@ -133,7 +133,8 @@ Remaining Time        LED State
 |VIRTUAL SIMULATION ARCHITECTURE IN PROTEUS|
 
 ---
-<img width="469" height="368" alt="image" src="https://github.com/user-attachments/assets/acff6652-4b95-4df1-b1fe-038ad03e43a3" />
+<img width="388" height="347" alt="image" src="https://github.com/user-attachments/assets/fd65bb52-7487-4c47-b1ff-5be65c0783c0" />
+
 
 ---
 
@@ -281,17 +282,6 @@ cd Smart-Exam-Hall-System
 ```
 
 ---
-
-## ⚠️ Known Constraints & Notes
-
-- `PINSEL1 = 0x10000000` is set in both `main.c` and `Init_ADC()` — ensure no conflict with other PINSEL1 configurations
-- Exam duration is validated between **5 and 99 minutes**
-- Exam start hour must be ≥ current RTC hour; minutes validated accordingly
-- The `f32Lcd()` function has a minor bug (`if(num<0.0)` checks uninitialized `num` instead of `fnum`) — fix: change `num` to `fnum` in that condition
-- `EXTMODE` and `EXTPOLAR` registers should be configured before enabling interrupts in VIC for reliable edge detection
-
----
-
 
 
 
