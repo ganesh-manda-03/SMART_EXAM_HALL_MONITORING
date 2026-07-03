@@ -54,7 +54,8 @@ Remaining Time        LED State
 
 ## 🏗️ System Architecture
 
-![System architecture](architecture.png)
+<img width="1360" height="1240" alt="9acbb75f-2f01-4596-80e7-e62d117dbb41" src="https://github.com/user-attachments/assets/976310c1-121a-45a4-9d41-25616041e4e1" />
+
 
 **Block overview:**
 - **Interrupt sources** — `EINT0` (settings menu), `EINT2` (pause/resume), `Timer0 ISR` (7-seg multiplexer, 5ms tick)
