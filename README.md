@@ -74,7 +74,7 @@ Remaining Time        LED State
 | 3 | Keypad | 4×4 Matrix Keypad | User input & navigation |
 | 4 | 7-Segment | 2-Digit Common Anode (Multiplexed) | Countdown display |
 | 5 | Temperature Sensor | LM35 (Analog, 10mV/°C) | Room temp monitoring |
-| 6 | RTC | LPC2148 Internal RTC | Real-time clock |
+| 6 | RTC | LPC2148 ON-Chip RTC | Real-time clock |
 | 7 | LEDs | 3× General Purpose LEDs | Time-warning indicators |
 | 8 | Buzzer | Active Buzzer | Exam-end alert |
 | 9 | Push Buttons | 2× (EINT0, EINT2) | Settings / Pause-Resume |
@@ -162,9 +162,6 @@ Smart-Exam-Hall-System/
 │
 └── Makefile / .uvproj            ← Build configuration
 ```
-
-> 🔁 **Mapping from the old single-file layout:** the original `all_macro1.h` was split into `types.h` + `defines.h` + all `*_defines.h` files, rolled back up under `all_macros.h`. The original `main.c` (with `main()`, ISRs, and countdown logic) is now `exam.c`. Password handling — previously mixed into `project_functions.c` — is now its own isolated module, `password.c` / `password.h`.
-
 ---
 
 ## ⚙️ How It Works
