@@ -27,7 +27,7 @@ The **Smart Exam Hall Monitoring and Management System** is a real-time embedded
 |---|---|
 | ⏱️ **Exam Countdown** | Automatically starts when RTC matches the set exam time; displays remaining time on 7-segment |
 | ⏸️ **Pause & Resume** | EINT2 interrupt pauses the countdown; paused duration is excluded from total elapsed time |
-| 🔐 **Password Protection** | 4-digit PIN (default: `1234`) guards all settings; 3 attempts allowed before lockout |
+| 🔐 **Password Protection** | 4-digit PIN (default: `1234`) guards all settings; PIN can be changed after authentication |
 | 🌡️ **Temperature Monitoring** | LM35 sensor reads room temperature via ADC and displays in °C on LCD |
 | 📅 **RTC Management** | Internal RTC for live time/date display; fully configurable via keypad |
 | 💡 **LED Alerts** | Three-stage visual alert as exam time nears its end |
@@ -65,7 +65,7 @@ Remaining Time        LED State
 │  └────┬─────┘   └────┬─────┘   └─────────────────────┘ │
 │       │              │                                  │
 │  ┌────▼──────────────▼───────────────────────────────┐  │
-│  │              Main Loop                            │  │
+│  │              Main Loop (exam.c)                   │  │
 │  │  • RTC time/date display                         │  │
 │  │  • Exam start detection (uhour == HOUR)          │  │
 │  │  • Elapsed time calculation (with pause offset) │  │
@@ -73,7 +73,8 @@ Remaining Time        LED State
 │  │  • Temperature reading (LM35 via ADC)           │  │
 │  └───────────────────────────────────────────────────┘  │
 │                                                         │
-│  PERIPHERALS:  LCD │ Keypad │ 7-Seg │ LM35 │ LEDs/BUZ  │
+│  DRIVERS:  lcd │ kpm │ seg │ adc │ lm35 │ rtc │ delay   │
+│  APP LOGIC:  exam │ password                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -111,8 +112,6 @@ Remaining Time        LED State
 | P0.28 | LED2 | Amber alert (≤3 min) |
 | P0.29 | LED3 | Yellow alert (≤5 min) |
 
-
-
 ### GPIO — Port 1
 
 | Pin | Label | Function |
@@ -130,30 +129,57 @@ Remaining Time        LED State
 | ADC CH3 (P0.28) | LM35 analog input |
 
 ---
+
 |VIRTUAL SIMULATION ARCHITECTURE IN PROTEUS|
 
 ---
 <img width="388" height="347" alt="image" src="https://github.com/user-attachments/assets/fd65bb52-7487-4c47-b1ff-5be65c0783c0" />
 
-
 ---
 
 ## 📁 Project Structure
 
+The codebase was refactored from a single monolithic file into a modular, multi-file structure — each peripheral driver and each app-level concern now lives in its own `.c`/`.h` pair for clean separation of compilation and easier maintenance.
+
 ```
 Smart-Exam-Hall-System/
 │
-├── 📄 main.c                  ← Main loop, ISRs, exam countdown logic
-├── 📄 project.c               ← Peripheral drivers (LCD, Keypad, ADC, LM35,
-│                                 Delay, 7-Segment)
-├── 📄 project_functions.c     ← Menu system: password, RTC settings,
-│                                 exam time, duration, password change
+├── inc/                          ← Header files (declarations only)
+│   ├── types.h                   ← Core typedefs (u8, s8, u32, s32, f32)
+│   ├── defines.h                 ← Generic bit-manipulation macros (SETBIT, READBIT, etc.)
+│   ├── rtc_defines.h             ← RTC prescaler constants (PCLK1, PREINT/PREFRAC)
+│   ├── lcd_defines.h             ← HD44780 command codes + LCD pin mapping
+│   ├── kpm_defines.h             ← Keypad row/column pin mapping
+│   ├── seg_defines.h             ← 7-segment mux pin mapping
+│   ├── adc_defines.h             ← ADC clock/channel/register-bit constants
+│   ├── io_defines.h              ← LED + buzzer pin mapping
+│   ├── all_macros.h              ← Umbrella header (LPC21xx.h + all defines above)
+│   ├── lcd.h                     ← LCD driver API
+│   ├── kpm.h                     ← Keypad driver API
+│   ├── delay.h                   ← Busy-wait delay API
+│   ├── seg.h                     ← 7-segment driver API
+│   ├── adc.h                     ← ADC driver API
+│   ├── lm35.h                    ← LM35 temperature sensor API
+│   ├── rtc.h                     ← RTC driver API
+│   ├── exam.h                    ← Exam state machine, ISRs, timer init
+│   └── password.h                ← Password entry/verification API
 │
-├── 📋 all_macro1.h            ← Type definitions, bit macros, all pin/peripheral
-│                                 defines (LCD, KPM, ADC, RTC, SEG, LED)
-├── 📋 project_declaration.h   ← Function prototypes for project_functions.c
-└── 📋 declaration.h           ← Function prototypes for project.c drivers
+├── src/                          ← Source files (implementations)
+│   ├── lcd.c                     ← LCD driver (HD44780 control)
+│   ├── kpm.c                     ← Keypad scan/decode logic
+│   ├── delay_def.c               ← delay_us / delay_ms / delay_s
+│   ├── seg.c                     ← 7-segment multiplex driver
+│   ├── adc.c                     ← ADC init + read
+│   ├── lm35.c                    ← LM35 → °C / °F conversion
+│   ├── rtc.c                     ← RTC init, time/date display, EINT0 edit handler
+│   ├── password.c                ← Password entry (masked PIN), verification, PIN reset
+│   └── exam.c                    ← main(), EINT0/EINT2 ISRs, Timer0 ISR, exam countdown loop
+│
+└── Makefile / .uvproj            ← Build configuration
 ```
+
+> 🔁 **Mapping from the old single-file layout:** the original `all_macro1.h` was split into `types.h` + `defines.h` + all `*_defines.h` files, rolled back up under `all_macros.h`. The original `main.c` (with `main()`, ISRs, and countdown logic) is now `exam.c`. Password handling — previously mixed into `project_functions.c` — is now its own isolated module, `password.c` / `password.h`.
+
 ---
 
 ## ⚙️ How It Works
@@ -161,11 +187,11 @@ Smart-Exam-Hall-System/
 ### 1️⃣ Boot & Initialization
 ```
 Power ON → Initialize GPIO, LCD, Keypad, 7-Seg, ADC, Timer0, EINT0, EINT2
-         → Set default RTC (12:59:40, 12/06/2026)
+         → Set default RTC time/date
          → Display "SYSTEM LOADING..." → Enter Main Loop
 ```
 
-### 2️⃣ Main Loop (Continuous)
+### 2️⃣ Main Loop (`exam.c`)
 - **Line 1:** Live RTC time `HH:MM:SS`
 - **Line 2:** Live RTC date `DD/MM/YYYY`
 - **Line 3:** Temperature `XX.XX °C` + PAUSE indicator (if paused)
@@ -174,12 +200,9 @@ Power ON → Initialize GPIO, LCD, Keypad, 7-Seg, ADC, Timer0, EINT0, EINT2
 
 ### 3️⃣ Settings Access (EINT0 Button)
 ```
-Press EINT0 → Password prompt (3 attempts, 4-digit PIN)
-            → Main Menu:
-              1. Edit RTC Time/Date
-              2. Edit Exam Start Time & Duration
-              3. Change Password
-              4. Exit
+Press EINT0 → password() in password.c prompts for 4-digit PIN
+            → On success: edit RTC time, exam start time, duration
+            → edit_password() available to reset the PIN (1000–9999)
 ```
 > ⚠️ EINT0 is **disabled** once an exam starts and **re-enabled** after it ends.
 
@@ -192,7 +215,7 @@ RTC matches exam start time
 Countdown begins → 7-seg counts down → LEDs trigger at thresholds
          ↓
         (optional) EINT2 to PAUSE → EINT2 again to RESUME
-        (paused seconds are excluded from elapsed time)
+        (paused minutes are excluded from elapsed time)
          ↓
 Duration reaches 0 → BUZZER sounds 3 sec → System resets for next exam
 ```
@@ -214,15 +237,12 @@ dur = (elapsed >= tempTime) ? 0 : tempTime - elapsed;
 
 ---
 
-## 🔐 Password System
+## 🔐 Password System (`password.c` / `password.h`)
 
 - Default PIN: **`1234`**
-- 4-digit numeric input only (range: `1000–9999`)
-- `*` shown on LCD for each digit entered
-- `+` key acts as **backspace**
-- `c` key cancels and returns to main display
-- **3 failed attempts** → 3-second lockout → return to main loop
-- PIN can be changed from the settings menu after authentication
+- `password()` — masks each digit as `*` on the LCD while entering; `+` acts as backspace, `c` cancels; confirms entry with `=`
+- `edit_password()` — resets the PIN to a new 4-digit value (`1000–9999`) via `ReadNum()`
+- Compares entered PIN against the global `save_pass` (declared in `exam.c`, referenced via `extern` in `password.c`)
 
 ---
 
@@ -268,22 +288,26 @@ cd Smart-Exam-Hall-System
 # 2. Open in Keil µVision
 #    File → Open Project → select the .uvproj file
 
-# 3. Add source files to project
-#    main.c, project.c, project_functions.c
+# 3. Add ALL source files under src/ to the project
+#    lcd.c, kpm.c, delay_def.c, seg.c, adc.c, lm35.c,
+#    rtc.c, password.c, exam.c
+#    (Project → Manage → Project Items, or right-click group
+#     → Add Existing Files to Group)
 
-# 4. Set target to LPC2148
+# 4. Add inc/ to the include search path
+#    Project → Options for Target → C/C++ → Include Paths → add "inc"
+
+# 5. Set target to LPC2148
 #    Project → Options for Target → Device: LPC2148
 
-# 5. Build
+# 6. Build
 #    Project → Build Target  (Shortcut: F7)
 
-# 6. Flash to board
+# 7. Flash to board
 #    Use Flash Magic with UART or JTAG debugger
 ```
 
----
-
-
+> ⚠️ **Common pitfall:** if you see linker errors like `Undefined symbol Kpm_init`, it means the corresponding `.c` file (e.g. `kpm.c`) was never added to the Keil project — declaring a function in a header is not enough, its `.c` implementation must be compiled and linked too.
 
 ---
 
