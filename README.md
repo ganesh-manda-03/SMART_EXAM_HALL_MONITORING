@@ -54,29 +54,14 @@ Remaining Time        LED State
 
 ## 🏗️ System Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   LPC2148 ARM7 MCU                      │
-│                                                         │
-│  ┌──────────┐   ┌──────────┐   ┌─────────────────────┐ │
-│  │  EINT0   │   │  EINT2   │   │   Timer0 (ISR)      │ │
-│  │ Settings │   │  Pause/  │   │  7-Seg Multiplexer  │ │
-│  │  Menu    │   │  Resume  │   │  (5ms tick)         │ │
-│  └────┬─────┘   └────┬─────┘   └─────────────────────┘ │
-│       │              │                                  │
-│  ┌────▼──────────────▼───────────────────────────────┐  │
-│  │              Main Loop (exam.c)                   │  │
-│  │  • RTC time/date display                         │  │
-│  │  • Exam start detection (uhour == HOUR)          │  │
-│  │  • Elapsed time calculation (with pause offset) │  │
-│  │  • LED / Buzzer control                         │  │
-│  │  • Temperature reading (LM35 via ADC)           │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                         │
-│  DRIVERS:  lcd │ kpm │ seg │ adc │ lm35 │ rtc │ delay   │
-│  APP LOGIC:  exam │ password                           │
-└─────────────────────────────────────────────────────────┘
-```
+> Add your exported architecture diagram image here, e.g.:
+> `![System architecture](docs/architecture.png)`
+
+**Block overview:**
+- **Interrupt sources** — `EINT0` (settings menu), `EINT2` (pause/resume), `Timer0 ISR` (7-seg multiplexer, 5ms tick)
+- **Main loop (`exam.c`)** — RTC time/date display, exam start detection, elapsed-time calculation with pause offset, LED/buzzer control
+- **peripherals** — `lcd` · `kpm` · `seg` · `adc` · `lm35` · `rtc`
+- **Security** — `password` module, invoked from the main loop when EINT0 fires
 
 ---
 
@@ -178,7 +163,7 @@ Smart-Exam-Hall-System/
 └── Makefile / .uvproj            ← Build configuration
 ```
 
-> 🔁 **Mapping from the old single-file layout:** the original `all_macro1.h` was split into `types.h` + `defines.h` + all `*_defines.h` files, rolled back up under `all_macros.h`. The original `main.c` (with `main()`, ISRs, and countdown logic) is now `exam.c`. Password handling — previously mixed into `project_functions.c` — is now its own isolated module, `password.c` / `password.h`.
+
 
 ---
 
