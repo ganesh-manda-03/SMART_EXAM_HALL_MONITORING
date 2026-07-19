@@ -118,7 +118,7 @@ Remaining Time        LED State
 |VIRTUAL SIMULATION ARCHITECTURE IN PROTEUS|
 
 ---
-<img width="1152" height="827" alt="Screenshot 2026-07-19 213544" src="https://github.com/user-attachments/assets/05d6f01a-d978-49da-8c47-2fc3edf8d79b" />
+<img width="1000" height="700" alt="Screenshot 2026-07-19 213544" src="https://github.com/user-attachments/assets/05d6f01a-d978-49da-8c47-2fc3edf8d79b" />
 
 
 ---
