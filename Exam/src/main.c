@@ -7,6 +7,7 @@
 #include "kpm.h"
 #include "adc.h"
 #include "rtc.h"
+#include "lm35.h"
 
 // EINT0 channel no 
 #define EINT0_CH 14
@@ -42,7 +43,8 @@ void EINT0_ISR(void)__irq
 //EINT2 for pause the exam duration
 // only acts if an exam is currently running (examRunning flag, see main)
 extern u8 examRunning; // set in main when uhour==HOUR && umin==MIN first triggers
-
+void EINT0_RISE(void);
+//f32 Read_LM35DegC(void);
 void EINT2_ISR(void)__irq
 {
 	if(examRunning)   //ignore pause button if exam hasn't started
@@ -102,7 +104,7 @@ void Timer0_Init(void)
 {
     T0TCR = 0x02;     
     T0PR  = 14999;    /* PCLK/15000 = 1000 Hz ? 1ms per tick */
-    T0MR0 = 5;        /* 5 ticks × 1ms = 5ms                 */
+    T0MR0 = 5;        /* 5 ticks Ã— 1ms = 5ms                 */
     T0MCR = 0x03;     
     T0TCR = 0x01;
 }
@@ -111,8 +113,8 @@ void Timer0_ISR() __irq
 {
 	
 	  disp_2_mux_segs(dur);  /*for displaying duration value on segments*/
-    T0IR        = 0x01;   /* clear interrupt flag — mandatory        */
-    VICVectAddr = 0;      /* EOI to VIC — must be absolute last line */
+    T0IR        = 0x01;   /* clear interrupt flag â€” mandatory        */
+    VICVectAddr = 0;      /* EOI to VIC â€” must be absolute last line */
 }
 
 void VIC_Init(void)
@@ -132,13 +134,14 @@ int main()
 {
 	u32 c=0;
 	u32 nowTotalMin, elapsed;
+	f32 lm35t;
 	//we have select the EINT0 and EINT1 from pinselect block.
 	PINSEL0=0x0000C00C;
 	//we have set the gpio function of p0.27,p0.28,p0.29 pins
 	PINSEL1=0x10000000;
 	//here we give the direction for buzzer and LEDs
 	IODIR0|=(1<<LED1)|(1<<LED2)|(1<<LED3)|(1<<buzzer);
-	IOSET0 = ((1<<LED1)|(1<<LED2)|(1<<LED3)|(1<<buzzer));
+	IOSET0 = ((1<<LED1)|(1<<LED2)|(1<<LED3));
 	//initialize EINT0 and EINT2
 	Init_ENIT0();
 	Init_ENIT2();
@@ -223,6 +226,7 @@ int main()
 				VICIntEnable=1<<EINT0_CH;//after exam finished again we enable the EINT0_ISR for edit settings
 				examRunning = 0;   // exam finished, stop running state
 				c = 0;             // allow a fresh exam to start later
+				IOCLR0= (1<<buzzer);
 			}
 			else if( dur>0 && dur<=5)
 			{
@@ -248,7 +252,11 @@ int main()
 	  Rtc_Date_Display();      //function for displaying rtc date
 		cmdLcd(GOTO_LINE3_POS0);	
 		strLcd("temp ");
-		f32Lcd(29.2,2); //temperature display on lcd
+		if(SEC%5==0)
+		{
+		  lm35t=Read_LM35DegC();
+		}
+		f32Lcd(lm35t,2); //temperature display on lcd
 		charLcd(0xdf);             
 		charLcd('C');
 		if(flag2%2)
@@ -258,6 +266,5 @@ int main()
 	
 	}		
 }
-
 
 
